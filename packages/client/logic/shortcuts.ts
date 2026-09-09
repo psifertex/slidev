@@ -7,12 +7,17 @@ import { watch } from 'vue'
 import { useNav } from '../composables/useNav'
 import setupShortcuts from '../setup/shortcuts'
 import { fullscreen, isInputting, isOnFocus, magicKeys, shortcutsEnabled, shortcutsLocked } from '../state'
+import { activeShortcutNames } from './shortcutsHelp'
 
 export function registerShortcuts() {
   const { isPrintMode } = useNav()
   const enabled = and(not(isInputting), not(isOnFocus), not(isPrintMode), shortcutsEnabled, not(shortcutsLocked))
 
   const allShortcuts = setupShortcuts()
+  // Feed the `?` help overlay from the live table rather than a hand-kept copy.
+  activeShortcutNames.value = allShortcuts
+    .map((options: ShortcutOptions) => options.name)
+    .filter((name): name is string => !!name)
   const shortcuts = new Map<string | Ref<boolean>, ShortcutOptions>(
     allShortcuts.map((options: ShortcutOptions) => [options.key, options]),
   )

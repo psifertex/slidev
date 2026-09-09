@@ -31,6 +31,7 @@ In Play mode, move your mouse to the bottom left corner of the page, you can see
 | -                                   | <carbon-information class="inline-icon-btn"/>                                         | Show information about the slides                               |
 | -                                   | <carbon-settings-adjust class="inline-icon-btn"/>                                     | More options                                                    |
 | <kbd>g</kbd>                        | -                                                                                     | Show goto...                                                    |
+| <kbd>?</kbd>                        | -                                                                                     | Show the keyboard shortcuts                                     |
 
 > You can [configure the shortcuts](../custom/config-shortcuts).
 

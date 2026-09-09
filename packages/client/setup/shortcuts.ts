@@ -4,14 +4,14 @@ import setups from '#slidev/setups/shortcuts'
 import { useDrawings } from '../composables/useDrawings'
 import { useNav } from '../composables/useNav'
 import { toggleDark } from '../logic/dark'
-import { activeDragElement, magicKeys, showGotoDialog, showOverview, toggleOverview } from '../state'
+import { activeDragElement, magicKeys, showGotoDialog, showOverview, showShortcutsHelp, toggleOverview } from '../state'
 import { downloadPDF } from '../utils'
 import { currentOverviewPage, downOverviewPage, nextOverviewPage, prevOverviewPage, upOverviewPage } from './../logic/overview'
 
 export default function setupShortcuts() {
   const { go, goFirst, goLast, next, nextSlide, prev, prevSlide } = useNav()
   const { drawingEnabled } = useDrawings()
-  const { escape, space, shift, left, right, up, down, enter, d, g, o, '`': backtick } = magicKeys
+  const { escape, space, shift, left, right, up, down, enter, d, g, o, '`': backtick, '?': question, slash } = magicKeys
 
   const context: NavOperations = {
     next,
@@ -26,7 +26,23 @@ export default function setupShortcuts() {
     toggleOverview,
     toggleDrawing: () => drawingEnabled.value = !drawingEnabled.value,
     escapeOverview: () => showOverview.value = false,
+    toggleShortcutsHelp,
     showGotoDialog: () => showGotoDialog.value = !showGotoDialog.value,
+  }
+
+  // The help and the overview are both full-screen; only one at a time.
+  function toggleShortcutsHelp() {
+    showOverview.value = false
+    showShortcutsHelp.value = !showShortcutsHelp.value
+  }
+
+  // Close whatever overlay is open before falling through to the overview.
+  function onEscape() {
+    if (showShortcutsHelp.value) {
+      showShortcutsHelp.value = false
+      return
+    }
+    showOverview.value = false
   }
 
   const navViaArrowKeys = and(not(showOverview), not(activeDragElement))
@@ -44,7 +60,8 @@ export default function setupShortcuts() {
     { name: 'prev_shift', key: and(left, shift), fn: prevSlide, autoRepeat: true },
     { name: 'toggle_dark', key: and(d, not(drawingEnabled)), fn: toggleDark },
     { name: 'toggle_overview', key: and(or(o, backtick), not(drawingEnabled)), fn: toggleOverview },
-    { name: 'hide_overview', key: and(escape, not(drawingEnabled)), fn: () => showOverview.value = false },
+    { name: 'hide_overview', key: and(escape, not(drawingEnabled)), fn: onEscape },
+    { name: 'toggle_help', key: and(or(question, and(shift, slash)), not(drawingEnabled)), fn: toggleShortcutsHelp },
     { name: 'goto', key: and(g, not(drawingEnabled)), fn: () => showGotoDialog.value = !showGotoDialog.value },
     { name: 'next_overview', key: and(right, showOverview), fn: nextOverviewPage },
     { name: 'prev_overview', key: and(left, showOverview), fn: prevOverviewPage },

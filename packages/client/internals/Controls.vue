@@ -7,6 +7,7 @@ import ContextMenu from './ContextMenu.vue'
 import Goto from './Goto.vue'
 import InfoDialog from './InfoDialog.vue'
 import QuickOverview from './QuickOverview.vue'
+import ShortcutsHelp from './ShortcutsHelp.vue'
 
 const { isEmbedded } = useNav()
 const drawingEnabled = __SLIDEV_FEATURE_DRAWINGS__ && !configs.drawings.presenterOnly && !isEmbedded.value
@@ -25,6 +26,7 @@ if (__SLIDEV_FEATURE_RECORD__) {
 <template>
   <DrawingControls v-if="DrawingControls" />
   <QuickOverview />
+  <ShortcutsHelp />
   <Goto />
   <WebCamera v-if="WebCamera" />
   <RecordingDialog v-if="RecordingDialog" v-model="showRecordingDialog" />

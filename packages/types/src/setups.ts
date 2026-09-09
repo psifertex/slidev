@@ -33,6 +33,8 @@ export interface NavOperations {
   downloadPDF: () => Promise<void>
   toggleDark: () => void
   toggleOverview: () => void
+  /** Show or hide the `?` keyboard help overlay */
+  toggleShortcutsHelp: () => void
   toggleDrawing: () => void
   escapeOverview: () => void
   showGotoDialog: () => void

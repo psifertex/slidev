@@ -22,6 +22,7 @@ import NoteStatic from '../internals/NoteStatic.vue'
 import QuickOverview from '../internals/QuickOverview.vue'
 import ScreenCaptureMirror from '../internals/ScreenCaptureMirror.vue'
 import SegmentControl from '../internals/SegmentControl.vue'
+import ShortcutsHelp from '../internals/ShortcutsHelp.vue'
 import SlideContainer from '../internals/SlideContainer.vue'
 import SlidesShow from '../internals/SlidesShow.vue'
 import SlideWrapper from '../internals/SlideWrapper.vue'
@@ -424,6 +425,7 @@ onMounted(() => {
   </div>
   <Goto />
   <QuickOverview />
+  <ShortcutsHelp />
   <ContextMenu />
 </template>
 
