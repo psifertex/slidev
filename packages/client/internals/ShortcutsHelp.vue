@@ -15,8 +15,16 @@
 -->
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useNav } from '../composables/useNav'
 import { activeShortcutNames, extraShortcutHelp, shortcutHelp } from '../logic/shortcutsHelp'
 import { showShortcutsHelp } from '../state'
+
+const { hasGrid } = useNav()
+
+/** Rows describe the bindings the deck actually has, which depend on `hasGrid`. */
+function describe(row: { description: string, grid?: string }) {
+  return hasGrid.value ? (row.grid ?? row.description) : row.description
+}
 
 const rows = computed(() => {
   const seen = new Set<string>()
@@ -26,10 +34,10 @@ const rows = computed(() => {
     if (!row || seen.has(name))
       continue
     seen.add(name)
-    out.push({ keys: row.keys, description: row.description })
+    out.push({ keys: row.keys, description: describe(row) })
   }
   for (const row of extraShortcutHelp)
-    out.push({ keys: row.keys, description: row.description })
+    out.push({ keys: row.keys, description: describe(row) })
   return out
 })
 
@@ -55,6 +63,11 @@ function close() {
             &#10005;
           </button>
         </div>
+        <p class="shortcuts-help-mode">
+          {{ hasGrid
+            ? 'This deck is a 2D grid: one column per topic, its rows below it.'
+            : 'This deck is a flat list of slides.' }}
+        </p>
         <table class="shortcuts-help-table">
           <tbody>
             <tr v-for="(row, i) of rows" :key="i">
@@ -115,7 +128,7 @@ function close() {
   align-items: baseline;
   justify-content: space-between;
   gap: 2rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.25rem;
   font-size: 0.95rem;
   font-weight: 600;
 }
@@ -132,6 +145,11 @@ function close() {
 
 .shortcuts-help-close:hover {
   opacity: 1;
+}
+
+.shortcuts-help-mode {
+  margin: 0 0 0.75rem;
+  opacity: 0.55;
 }
 
 .shortcuts-help-table {
