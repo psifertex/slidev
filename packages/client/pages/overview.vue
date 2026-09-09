@@ -131,6 +131,18 @@ function scrollToSlide(idx: number) {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+/**
+ * Slidev disables every keyboard shortcut while a `<button>` or `<a>` holds
+ * focus (`isOnFocus` in `state/storage.ts` gates `registerShortcuts`), so
+ * clicking one of these slide numbers would leave the deck deaf to space, the
+ * arrows and `o` until you clicked somewhere else. Hand focus back after
+ * scrolling; the buttons stay tabbable and Enter still activates them.
+ */
+function jumpToSlide(idx: number, event: MouseEvent) {
+  (event.currentTarget as HTMLElement | null)?.blur()
+  scrollToSlide(idx)
+}
+
 function getSlidePreviewTop(idx: number) {
   const el = slidePreviews.get(idx) || blocks.get(idx)
   if (!el || !scroller.value)
@@ -301,17 +313,25 @@ onUnmounted(() => {
       class="grid grid-rows-[auto_max-content] border-r border-main select-none max-h-full h-full"
     >
       <div class="relative">
-        <div class="absolute left-0 top-0 bottom-0 w-200 flex flex-col flex-auto items-end group p-6px md:p-10px gap-1 max-h-full of-x-visible of-y-auto" style="direction:rtl">
+        <!-- This box is 800px wide so the `left-110%` title tooltips are not
+             clipped, but it is anchored at `left-0` and therefore reaches
+             right across the first deck column and into the second. Left
+             hit-testable it swallowed the pointer in every gutter between
+             slide blocks, which lit up the whole tooltip column; and `group`
+             on it revealed *every* title at once rather than the one under
+             the cursor. So: no pointer events here, restored on the controls
+             themselves, and `group` moved down to each slide's own wrapper. -->
+        <div class="absolute left-0 top-0 bottom-0 w-200 flex flex-col flex-auto items-end pointer-events-none p-6px md:p-10px gap-1 max-h-full of-x-visible of-y-auto" style="direction:rtl">
           <div
             v-for="(route, idx) of slides"
             :key="route.no"
-            class="relative"
+            class="relative group pointer-events-auto"
             style="direction:ltr"
           >
             <button
               class="relative transition duration-300 w-8 h-8 rounded hover:bg-active hover:op100"
               :class="activeBlocks.includes(idx) ? 'op100 text-primary bg-gray:5' : 'op20'"
-              @click="scrollToSlide(idx)"
+              @click="jumpToSlide(idx, $event)"
             >
               <div>{{ idx + 1 }}</div>
             </button>
