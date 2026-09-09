@@ -392,6 +392,13 @@ export interface Frontmatter extends TransitionOptions {
    */
   hideInToc?: boolean
   /**
+   * Start a new row in the same 2D grid column instead of a new column.
+   *
+   * Injected automatically for a slide introduced by a bare `--` separator;
+   * setting it by hand on a `---` slide has the same effect.
+   */
+  nested?: boolean
+  /**
    * Override the title for the `<TitleRenderer>` and `<Toc>` components
    * Only if `title` has also been declared
    */

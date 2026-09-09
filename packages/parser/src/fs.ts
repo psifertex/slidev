@@ -183,6 +183,22 @@ export async function load(
   if (slides[0]?.title)
     headmatter.title ??= slides[0].title
 
+  // Calculate 2D grid positions for all slides.
+  // Slides with `nested: true` frontmatter stay in the same column (incrementing the row).
+  // All other slides start a new column at row 0.
+  let col = 0
+  const rowCountPerCol = new Map<number, number>([[0, 0]])
+  for (let i = 0; i < slides.length; i++) {
+    if (i > 0 && !slides[i].frontmatter.nested) {
+      col++
+      rowCountPerCol.set(col, 0)
+    }
+    const row = rowCountPerCol.get(col) ?? 0
+    slides[i].gridCol = col
+    slides[i].gridRow = row
+    rowCountPerCol.set(col, row + 1)
+  }
+
   return {
     slides,
     entry,

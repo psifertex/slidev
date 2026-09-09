@@ -148,6 +148,37 @@ b
     expect(data.slides.map(s => s.content.trim())).toEqual(['a', 'hidden\n-->\n\nb'])
   })
 
+  it('parse -- vertical separator', async () => {
+    const data = await parse(`
+# Column 1
+
+--
+
+# Sub-slide 1A
+
+--
+
+# Sub-slide 1B
+
+---
+
+# Column 2
+
+--
+
+# Sub-slide 2A
+
+---
+
+# Column 3
+`, 'file.md')
+    expect(data.slides.length).toBe(6)
+    expect(data.slides.map(s => s.frontmatter.nested))
+      .toEqual([undefined, true, true, undefined, true, undefined])
+    // Explicit nested: true in frontmatter overrides nothing
+    expect(data.slides[1].frontmatter).toEqual({ nested: true })
+  })
+
   async function parseWithExtension(
     src: string,
     transformRawLines: (lines: string[]) => void | Promise<void> = () => {},
