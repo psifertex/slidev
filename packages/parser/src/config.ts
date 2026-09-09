@@ -59,6 +59,8 @@ export function getDefaultConfig(): SlidevConfig {
     magicMoveDuration: 800,
     preloadImages: true,
     clickAnimation: '',
+    progressBar: 'auto',
+    progressBarHideLayouts: ['cover', 'full', 'statement', 'end', 'image', 'none'],
   }
 }
 

@@ -11,7 +11,8 @@ import { useWakeLock } from '../composables/useWakeLock'
 import { slidesTitle } from '../env'
 import ClicksSlider from '../internals/ClicksSlider.vue'
 import ContextMenu from '../internals/ContextMenu.vue'
-import CurrentProgressBar from '../internals/CurrentProgressBar.vue'
+import DeckMinimap from '../internals/DeckMinimap.vue'
+import DeckProgressBar from '../internals/DeckProgressBar.vue'
 import DrawingControls from '../internals/DrawingControls.vue'
 import Goto from '../internals/Goto.vue'
 import IconButton from '../internals/IconButton.vue'
@@ -47,6 +48,7 @@ const {
   clicksContext,
   currentSlideNo,
   currentSlideRoute,
+  hasGrid,
   hasNext,
   nextRoute,
   slides,
@@ -265,8 +267,13 @@ onMounted(() => {
 
 <template>
   <div class="bg-main h-full slidev-presenter grid grid-rows-[max-content_1fr] of-hidden">
-    <div>
-      <CurrentProgressBar />
+    <div class="min-w-0 of-hidden">
+      <!-- The 2D map of the whole talk, then the same column-proportional bar
+           the audience sees. Both replace the stock `CurrentProgressBar`, whose
+           equal-width-per-slide model does not match how a grid deck is
+           navigated: `right` can jump the slide index by a whole column. -->
+      <DeckMinimap v-if="hasGrid" />
+      <DeckProgressBar :height="4" />
       <TimerBar />
     </div>
     <div

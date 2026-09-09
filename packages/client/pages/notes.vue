@@ -6,7 +6,7 @@ import { createClicksContextBase } from '../composables/useClicks'
 import { useNav } from '../composables/useNav'
 import { slidesTitle } from '../env'
 import ClicksSlider from '../internals/ClicksSlider.vue'
-import CurrentProgressBar from '../internals/CurrentProgressBar.vue'
+import DeckProgressBar from '../internals/DeckProgressBar.vue'
 import IconButton from '../internals/IconButton.vue'
 import Modal from '../internals/Modal.vue'
 import NoteDisplay from '../internals/NoteDisplay.vue'
@@ -61,7 +61,7 @@ const clicksContext = computed(() => {
     </div>
   </Modal>
   <div class="h-full flex flex-col">
-    <CurrentProgressBar :clicks-context="clicksContext" :current="pageNo" />
+    <DeckProgressBar :clicks-context="clicksContext" :current="pageNo" :height="4" class="flex-none" />
     <TimerBar />
     <div
       ref="scroller"
