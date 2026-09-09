@@ -7,6 +7,7 @@ export const showRecordingDialog = ref(false)
 export const showInfoDialog = ref(false)
 export const showGotoDialog = ref(false)
 export const showOverview = ref(false)
+export const showShortcutsHelp = ref(false)
 
 /**
  * Skip slides transition when triggered by HMR.
@@ -105,6 +106,7 @@ export function decreasePresenterFontSize() {
 }
 
 export const toggleOverview = useToggle(showOverview)
+export const toggleShortcutsHelp = useToggle(showShortcutsHelp)
 
 export const syncDirections = useLocalStorage(
   'slidev-sync-directions',
