@@ -226,13 +226,26 @@ export async function parse(
   let start = 0
   let contentStart = 0
   let inHtmlComment = false
+  // When true, the next non-empty slice is marked as a nested (vertical) slide
+  let pendingNested = false
 
   async function slice(end: number) {
     if (start === end)
       return
     const raw = lines.slice(start, end).join('\n')
+    // Skip slides that are purely whitespace (e.g. blank lines between `--` and `---`)
+    if (!raw.trim()) {
+      start = end + 1
+      contentStart = end + 1
+      return
+    }
+    const parsed = parseSlide(raw, options)
+    // Inject `nested: true` when the slide was created by a `--` vertical separator
+    if (pendingNested && !parsed.frontmatter.nested)
+      parsed.frontmatter = { nested: true, ...parsed.frontmatter }
+    pendingNested = false
     const slide: SourceSlideInfo = {
-      ...parseSlide(raw, options),
+      ...parsed,
       filepath,
       index: slides.length,
       start,
@@ -294,6 +307,13 @@ export async function parse(
         contentStart = i + 1
       }
     }
+    // Vertical slide separator: `--` on its own line creates a nested sub-slide
+    else if (line === '--') {
+      await slice(i)
+      pendingNested = true
+      start = i + 1
+      contentStart = i + 1
+    }
     // skip code block
     else if (line.trimStart().startsWith('```')) {
       const codeBlockLevel = line.match(RE_LEADING_BACKTICKS)![0]
@@ -332,13 +352,23 @@ export function parseSync(
   let start = 0
   let contentStart = 0
   let inHtmlComment = false
+  let pendingNested = false
 
   function slice(end: number) {
     if (start === end)
       return
     const raw = lines.slice(start, end).join('\n')
+    if (!raw.trim()) {
+      start = end + 1
+      contentStart = end + 1
+      return
+    }
+    const parsed = parseSlide(raw, options)
+    if (pendingNested && !parsed.frontmatter.nested)
+      parsed.frontmatter = { nested: true, ...parsed.frontmatter }
+    pendingNested = false
     const slide: SourceSlideInfo = {
-      ...parseSlide(raw, options),
+      ...parsed,
       filepath,
       index: slides.length,
       start,
@@ -371,6 +401,13 @@ export function parseSync(
         }
         contentStart = i + 1
       }
+    }
+    // Vertical slide separator: `--` on its own line creates a nested sub-slide
+    else if (line === '--') {
+      slice(i)
+      pendingNested = true
+      start = i + 1
+      contentStart = i + 1
     }
     // skip code block
     else if (line.trimStart().startsWith('```')) {

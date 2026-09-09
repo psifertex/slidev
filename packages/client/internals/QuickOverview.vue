@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import type { SlideRoute } from '@slidev/types'
 import { useEventListener } from '@vueuse/core'
-import { computed, ref, watchEffect } from 'vue'
+import { computed, nextTick, ref, watch, watchEffect } from 'vue'
 import { createFixedClicks } from '../composables/useClicks'
 import { useNav } from '../composables/useNav'
 import { CLICKS_MAX } from '../constants'
@@ -15,7 +16,33 @@ import SlideContainer from './SlideContainer.vue'
 import SlideWrapper from './SlideWrapper.vue'
 
 const nav = useNav()
-const { currentSlideNo, go: goSlide, slides } = nav
+const { currentSlideNo, go: goSlide, slides, hasGrid } = nav
+
+const numCols = computed(() => {
+  if (!hasGrid.value)
+    return 1
+  return (slides.value[slides.value.length - 1]?.meta.slide?.gridCol ?? 0) + 1
+})
+
+/** Number of rows in the tallest column, for the reveal.js-style `h.v` label. */
+const rowsPerCol = computed(() => {
+  const counts = new Map<number, number>()
+  for (const route of slides.value) {
+    const col = route.meta.slide?.gridCol ?? 0
+    counts.set(col, (counts.get(col) ?? 0) + 1)
+  }
+  return counts
+})
+
+/**
+ * reveal.js' slide number: 1-based `h.v`, with the `.v` dropped for a column
+ * that is not a stack (`slidenumber.js`, SLIDE_NUMBER_FORMAT_HORIZONTAL_DOT_VERTICAL).
+ */
+function gridLabel(route: SlideRoute) {
+  const col = route.meta.slide?.gridCol ?? 0
+  const row = route.meta.slide?.gridRow ?? 0
+  return (rowsPerCol.value.get(col) ?? 1) > 1 ? `${col + 1}.${row + 1}` : `${col + 1}`
+}
 
 function close() {
   showOverview.value = false
@@ -37,6 +64,11 @@ const sm = breakpoints.smaller('sm')
 
 const padding = 4 * 16 * 2
 const gap = 2 * 16
+// Cards keep their full, readable size in grid mode too. reveal.js' overview
+// (`js/controllers/overview.js` `layout()`) lays the grid out at a fixed scale
+// and translates the *viewport* to the current cell - it never shrinks to fit.
+// A ten-column deck is wider than the window and that is the point: you scroll
+// around a large map. Scaling to fit would only get worse as columns are added.
 const cardWidth = computed(() => {
   if (xs.value)
     return windowSize.width.value - padding
@@ -47,6 +79,35 @@ const cardWidth = computed(() => {
 
 const rowCount = computed(() => {
   return Math.floor((windowSize.width.value - padding) / (cardWidth.value + gap))
+})
+
+// Keep the current card in view while the arrow keys drive the deck. reveal.js
+// centres the current cell rather than doing the minimum scroll; the browser
+// clamps to the scroll range at the edges, so the first and last column/row sit
+// flush instead of leaving dead space.
+const scroller = ref<HTMLElement | null>(null)
+function revealCurrentCard(smooth = true) {
+  nextTick(() => {
+    scroller.value
+      ?.querySelector('[data-current="true"]')
+      ?.scrollIntoView({ block: 'center', inline: 'center', behavior: smooth ? 'smooth' : 'auto' })
+  })
+}
+watch(showOverview, (open) => {
+  // Jump straight to the current card when opening; animating from 0,0 while
+  // the overlay is still fading in just looks like a glitch.
+  if (open)
+    revealCurrentCard(false)
+})
+watch(currentSlideNo, () => {
+  if (showOverview.value)
+    revealCurrentCard(true)
+})
+// A resize re-lays out the grid, which would otherwise leave the current card
+// wherever the old scroll offset happened to point.
+watch(() => [windowSize.width.value, windowSize.height.value], () => {
+  if (showOverview.value)
+    revealCurrentCard(false)
 })
 
 const keyboardBuffer = ref<string>('')
@@ -118,21 +179,28 @@ watchEffect(() => {
   >
     <div
       v-if="showOverview"
-      class="fixed left-0 right-0 top-0 h-[calc(var(--vh,1vh)*100)] z-modal bg-main !bg-opacity-75 p-16 py-20 overflow-y-auto backdrop-blur-5px select-none"
+      ref="scroller"
+      class="fixed left-0 right-0 top-0 h-[calc(var(--vh,1vh)*100)] z-modal bg-main !bg-opacity-75 backdrop-blur-5px select-none"
+      :class="hasGrid ? 'p-8 py-10 overflow-auto' : 'p-16 py-20 overflow-y-auto'"
       @click="close"
     >
       <div
-        class="grid gap-y-4 gap-x-8 w-full"
-        :style="`grid-template-columns: repeat(auto-fit,minmax(${cardWidth}px,1fr))`"
+        class="grid"
+        :class="hasGrid ? 'gap-y-6 gap-x-4 items-start' : 'gap-y-4 gap-x-8 w-full'"
+        :style="hasGrid
+          ? `grid-template-columns: repeat(${numCols}, ${cardWidth}px)`
+          : `grid-template-columns: repeat(auto-fit,minmax(${cardWidth}px,1fr))`"
       >
         <div
           v-for="(route, idx) of slides"
           :key="route.no"
           class="relative"
+          :style="hasGrid ? { gridColumn: (route.meta.slide?.gridCol ?? 0) + 1, gridRow: (route.meta.slide?.gridRow ?? 0) + 1 } : undefined"
         >
           <div
             class="inline-block border rounded overflow-hidden bg-main hover:border-primary transition"
-            :class="(focus(idx + 1) || currentOverviewPage === idx + 1) ? 'border-primary' : 'border-main'"
+            :class="(focus(idx + 1) || currentOverviewPage === idx + 1) ? 'border-primary ring-2 ring-primary' : 'border-main'"
+            :data-current="hasGrid && route.no === currentSlideNo ? 'true' : undefined"
             @click="go(route.no)"
           >
             <SlideContainer
@@ -150,7 +218,21 @@ watchEffect(() => {
               <DrawingPreview :page="route.no" />
             </SlideContainer>
           </div>
+          <!-- In grid mode the number goes *under* the card: an absolutely
+               positioned label at `cardWidth + 5px` would sit on top of the
+               next column. -->
           <div
+            v-if="hasGrid"
+            class="flex justify-between text-xs leading-none mt-1 tabular-nums"
+          >
+            <span class="opacity-60 font-bold">{{ gridLabel(route) }}</span>
+            <template v-if="keyboardBuffer && String(idx + 1).startsWith(keyboardBuffer)">
+              <span><span class="text-green font-bold">{{ keyboardBuffer }}</span><span class="opacity-50">{{ String(idx + 1).slice(keyboardBuffer.length) }}</span></span>
+            </template>
+            <span v-else class="opacity-40">{{ idx + 1 }}</span>
+          </div>
+          <div
+            v-else
             class="absolute top-0"
             :style="`left: ${cardWidth + 5}px`"
           >

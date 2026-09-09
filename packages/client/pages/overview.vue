@@ -23,7 +23,7 @@ useHead({ title: `Overview - ${slidesTitle}` })
 
 const currentRoute = useRoute()
 const router = useRouter()
-const { openInEditor, slides, isEmbedded } = useNav()
+const { openInEditor, slides, isEmbedded, hasGrid } = useNav()
 const isPreviewMode = computed(() => currentRoute.query.mode === 'preview')
 const isEmbeddedPreviewMode = computed(() => isPreviewMode.value && isEmbedded.value)
 const overviewCardWidth = computed(() => {
@@ -34,6 +34,25 @@ const overviewCardWidth = computed(() => {
   return Math.min(900, Math.max(320, windowSize.width.value - 160))
 })
 const overviewSlideHeight = computed(() => overviewCardWidth.value / slideAspect.value)
+
+// The 2D grid layout is a presentation aid. The embedded VS Code preview is a
+// narrow single-column surface, so it always falls back to the linear list.
+const gridLayout = computed(() => hasGrid.value && !isEmbeddedPreviewMode.value)
+
+// Group slides by their grid column, for the sidebar mini-map and for sizing
+// the CSS grid that lays out the main content.
+const gridColumns = computed<SlideRoute[][]>(() => {
+  if (!hasGrid.value)
+    return []
+  const cols = new Map<number, SlideRoute[]>()
+  for (const route of slides.value) {
+    const col = route.meta.slide?.gridCol ?? 0
+    if (!cols.has(col))
+      cols.set(col, [])
+    cols.get(col)!.push(route)
+  }
+  return Array.from(cols.values())
+})
 
 const blocks: Map<number, HTMLElement> = reactive(new Map())
 const slidePreviews: Map<number, HTMLElement> = reactive(new Map())
@@ -135,7 +154,7 @@ function scrollToSlide(idx: number) {
  * Slidev disables every keyboard shortcut while a `<button>` or `<a>` holds
  * focus (`isOnFocus` in `state/storage.ts` gates `registerShortcuts`), so
  * clicking one of these slide numbers would leave the deck deaf to space, the
- * arrows and `o` until you clicked somewhere else. Hand focus back after
+ * arrows, `o` and `?` until you clicked somewhere else. Hand focus back after
  * scrolling; the buttons stay tabbable and Enter still activates them.
  */
 function jumpToSlide(idx: number, event: MouseEvent) {
@@ -322,27 +341,61 @@ onUnmounted(() => {
              the cursor. So: no pointer events here, restored on the controls
              themselves, and `group` moved down to each slide's own wrapper. -->
         <div class="absolute left-0 top-0 bottom-0 w-200 flex flex-col flex-auto items-end pointer-events-none p-6px md:p-10px gap-1 max-h-full of-x-visible of-y-auto" style="direction:rtl">
-          <div
-            v-for="(route, idx) of slides"
-            :key="route.no"
-            class="relative group pointer-events-auto"
-            style="direction:ltr"
-          >
-            <button
-              class="relative transition duration-300 w-8 h-8 rounded hover:bg-active hover:op100"
-              :class="activeBlocks.includes(idx) ? 'op100 text-primary bg-gray:5' : 'op20'"
-              @click="jumpToSlide(idx, $event)"
-            >
-              <div>{{ idx + 1 }}</div>
-            </button>
+          <template v-if="gridLayout">
             <div
-              v-if="route.meta?.slide?.title"
-              class="pointer-events-none select-none absolute left-110% top-50% translate-y--50% ws-nowrap z-label px2 slidev-glass-effect transition duration-400 op0 group-hover:op100"
-              :class="activeBlocks.includes(idx) ? 'text-primary' : 'text-main important-text-op-50'"
+              v-for="(col, colIdx) of gridColumns"
+              :key="`col-${colIdx}`"
+              class="relative w-8 flex flex-col gap-0.5"
+              style="direction:ltr"
             >
-              {{ route.meta?.slide?.title }}
+              <div class="text-2xs op30 text-center font-mono mb0.5">
+                {{ colIdx + 1 }}
+              </div>
+              <div
+                v-for="route of col"
+                :key="route.no"
+                class="relative group pointer-events-auto"
+              >
+                <button
+                  class="relative transition duration-300 w-8 h-6 rounded hover:bg-active hover:op100 text-xs"
+                  :class="activeBlocks.includes(route.no - 1) ? 'op100 text-primary bg-gray:5' : 'op20'"
+                  @click="jumpToSlide(route.no - 1, $event)"
+                >
+                  <div>{{ route.no }}</div>
+                </button>
+                <div
+                  v-if="route.meta?.slide?.title"
+                  class="pointer-events-none select-none absolute left-110% top-50% translate-y--50% ws-nowrap z-label px2 slidev-glass-effect transition duration-400 op0 group-hover:op100"
+                  :class="activeBlocks.includes(route.no - 1) ? 'text-primary' : 'text-main important-text-op-50'"
+                >
+                  {{ route.meta?.slide?.title }}
+                </div>
+              </div>
             </div>
-          </div>
+          </template>
+          <template v-else>
+            <div
+              v-for="(route, idx) of slides"
+              :key="route.no"
+              class="relative group pointer-events-auto"
+              style="direction:ltr"
+            >
+              <button
+                class="relative transition duration-300 w-8 h-8 rounded hover:bg-active hover:op100"
+                :class="activeBlocks.includes(idx) ? 'op100 text-primary bg-gray:5' : 'op20'"
+                @click="jumpToSlide(idx, $event)"
+              >
+                <div>{{ idx + 1 }}</div>
+              </button>
+              <div
+                v-if="route.meta?.slide?.title"
+                class="pointer-events-none select-none absolute left-110% top-50% translate-y--50% ws-nowrap z-label px2 slidev-glass-effect transition duration-400 op0 group-hover:op100"
+                :class="activeBlocks.includes(idx) ? 'text-primary' : 'text-main important-text-op-50'"
+              >
+                {{ route.meta?.slide?.title }}
+              </div>
+            </div>
+          </template>
         </div>
       </div>
       <div p2 border="t main">
@@ -367,122 +420,136 @@ onUnmounted(() => {
     <main
       ref="scroller"
       class="flex-1 h-full of-auto"
-      :style="`grid-template-columns: repeat(auto-fit,minmax(${cardWidth}px,1fr))`"
+      :style="gridLayout ? undefined : `grid-template-columns: repeat(auto-fit,minmax(${cardWidth}px,1fr))`"
       @scroll="onOverviewScroll"
     >
       <div
-        v-for="(route, idx) of slides"
-        :key="route.no"
-        :ref="el => blocks.set(idx, el as any)"
-        class="overview-slide-block relative of-hidden flex gap-4 min-h-50"
-        :class="[idx === 0 && !isEmbeddedPreviewMode ? 'pt2' : '', isEmbeddedPreviewMode ? 'justify-center' : 'border-t border-main']"
+        :class="gridLayout ? 'inline-grid items-start' : ''"
+        :style="gridLayout ? `grid-template-columns: repeat(${gridColumns.length}, max-content)` : undefined"
       >
         <div
-          v-if="!isEmbeddedPreviewMode"
-          class="select-none text-right my5 flex flex-col justify-between items-end"
-          :class="isPreviewMode ? 'w-9' : 'w-13'"
-          :style="{ height: `${overviewSlideHeight}px` }"
-        >
-          <div class="self-center text-3xl op20 mb2 text-center mr--14px tabular-nums" :style="{ width: `${slideNoDigits}ch` }">
-            {{ idx + 1 }}
-          </div>
-          <div class="flex flex-col gap-1 mx-1 items-end">
-            <IconButton
-              class="overview-slide-action mr--4 op0"
-              :class="isPreviewMode ? 'text-lg' : ''"
-              title="Play in new tab"
-              @click="openSlideInNewTab(getSlidePath(route, false))"
-            >
-              <div class="i-carbon:presentation-file" />
-            </IconButton>
-            <IconButton
-              v-if="__DEV__ && route.meta?.slide"
-              class="overview-slide-action mr--4 op0"
-              :class="isPreviewMode ? 'text-lg' : ''"
-              title="Open in editor"
-              @click="openInEditor(`${route.meta.slide.filepath}:${route.meta.slide.start}`)"
-            >
-              <div class="i-carbon:edit" />
-            </IconButton>
-          </div>
-        </div>
-        <div
-          class="flex flex-col"
-          :class="isEmbeddedPreviewMode ? 'my1 gap-0' : 'my5 gap-2'"
-          :style="{ width: `${overviewCardWidth}px` }"
+          v-for="(route, idx) of slides"
+          :key="route.no"
+          :ref="el => blocks.set(idx, el as any)"
+          :style="gridLayout ? { gridColumn: (route.meta.slide?.gridCol ?? 0) + 1, gridRow: (route.meta.slide?.gridRow ?? 0) + 1 } : undefined"
+          class="overview-slide-block relative of-hidden flex gap-4 min-h-50"
+          :class="[
+            idx === 0 && !isEmbeddedPreviewMode ? 'pt2' : '',
+            isEmbeddedPreviewMode ? 'justify-center' : 'border-t border-main',
+            gridLayout && (route.meta.slide?.gridCol ?? 0) < gridColumns.length - 1 ? 'border-r border-main' : '',
+            gridLayout && (route.meta.slide?.gridRow ?? 0) === 0 ? 'border-t-2 border-t-primary/30' : '',
+          ]"
         >
           <div
-            v-if="isEmbeddedPreviewMode"
-            class="flex items-end gap-2"
+            v-if="!isEmbeddedPreviewMode"
+            class="select-none text-right my5 flex flex-col justify-between items-end"
+            :class="isPreviewMode ? 'w-9' : 'w-13'"
+            :style="{ height: `${overviewSlideHeight}px` }"
           >
-            <button
-              type="button"
-              class="select-none pl-1 text-lg leading-tight op60 tabular-nums hover:op90 hover:underline underline-offset-2"
-              @click="openOverviewSlideSource($event, route)"
-            >
+            <div class="self-center text-3xl op20 mb2 text-center mr--14px tabular-nums" :style="{ width: `${slideNoDigits}ch` }">
               {{ idx + 1 }}
-            </button>
+            </div>
+            <div v-if="gridLayout" class="self-center text-xs op30 font-mono mb1 mr--14px">
+              {{ (route.meta.slide?.gridCol ?? 0) + 1 }},{{ (route.meta.slide?.gridRow ?? 0) + 1 }}
+            </div>
+            <div class="flex flex-col gap-1 mx-1 items-end">
+              <IconButton
+                class="overview-slide-action mr--4 op0"
+                :class="isPreviewMode ? 'text-lg' : ''"
+                title="Play in new tab"
+                @click="openSlideInNewTab(getSlidePath(route, false))"
+              >
+                <div class="i-carbon:presentation-file" />
+              </IconButton>
+              <IconButton
+                v-if="__DEV__ && route.meta?.slide"
+                class="overview-slide-action mr--4 op0"
+                :class="isPreviewMode ? 'text-lg' : ''"
+                title="Open in editor"
+                @click="openInEditor(`${route.meta.slide.filepath}:${route.meta.slide.start}`)"
+              >
+                <div class="i-carbon:edit" />
+              </IconButton>
+            </div>
+          </div>
+          <div
+            class="flex flex-col"
+            :class="isEmbeddedPreviewMode ? 'my1 gap-0' : 'my5 gap-2'"
+            :style="{ width: `${overviewCardWidth}px` }"
+          >
+            <div
+              v-if="isEmbeddedPreviewMode"
+              class="flex items-end gap-2"
+            >
+              <button
+                type="button"
+                class="select-none pl-1 text-lg leading-tight op60 tabular-nums hover:op90 hover:underline underline-offset-2"
+                @click="openOverviewSlideSource($event, route)"
+              >
+                {{ idx + 1 }}
+              </button>
+              <ClicksSlider
+                v-if="getSlideClicks(route)"
+                :active="activeSlide === route"
+                :clicks-context="getClicksContext(route)"
+                resettable
+                compact
+                attached
+                class="ml-auto w-88 min-w-[70%] max-w-[calc(100%-3rem)]"
+                @dblclick="toggleRoute(route)"
+                @activate="activeSlide = route"
+                @reset="activeSlide = undefined"
+              />
+            </div>
+            <div
+              :ref="el => slidePreviews.set(idx, el as any)"
+              class="border rounded border-main overflow-hidden bg-main h-max"
+              :class="[isEmbeddedPreviewMode && getSlideClicks(route) ? 'rounded-tr-0' : '', isEmbeddedPreviewMode ? '' : 'select-none']"
+              @dblclick="!isEmbeddedPreviewMode && openSlideInNewTab(getSlidePath(route, false))"
+            >
+              <SlideContainer
+                :key="route.no"
+                :width="overviewCardWidth"
+                :class="isEmbeddedPreviewMode ? '' : 'pointer-events-none important:[&_*]:select-none'"
+              >
+                <SlideWrapper
+                  :clicks-context="getClicksContext(route)"
+                  :route="route"
+                  render-context="overview"
+                />
+                <DrawingPreview :page="route.no" />
+              </SlideContainer>
+            </div>
             <ClicksSlider
-              v-if="getSlideClicks(route)"
+              v-if="getSlideClicks(route) && !isEmbeddedPreviewMode"
               :active="activeSlide === route"
               :clicks-context="getClicksContext(route)"
               resettable
-              compact
-              attached
-              class="ml-auto w-88 min-w-[70%] max-w-[calc(100%-3rem)]"
+              class="ml-1 w-[calc(100%-0.25rem)]"
+              :class="isPreviewMode ? '' : 'mt-2'"
               @dblclick="toggleRoute(route)"
               @activate="activeSlide = route"
               @reset="activeSlide = undefined"
             />
           </div>
-          <div
-            :ref="el => slidePreviews.set(idx, el as any)"
-            class="border rounded border-main overflow-hidden bg-main h-max"
-            :class="[isEmbeddedPreviewMode && getSlideClicks(route) ? 'rounded-tr-0' : '', isEmbeddedPreviewMode ? '' : 'select-none']"
-            @dblclick="!isEmbeddedPreviewMode && openSlideInNewTab(getSlidePath(route, false))"
-          >
-            <SlideContainer
-              :key="route.no"
-              :width="overviewCardWidth"
-              :class="isEmbeddedPreviewMode ? '' : 'pointer-events-none important:[&_*]:select-none'"
-            >
-              <SlideWrapper
-                :clicks-context="getClicksContext(route)"
-                :route="route"
-                render-context="overview"
-              />
-              <DrawingPreview :page="route.no" />
-            </SlideContainer>
-          </div>
-          <ClicksSlider
-            v-if="getSlideClicks(route) && !isEmbeddedPreviewMode"
-            :active="activeSlide === route"
+          <NoteEditable
+            v-if="!isPreviewMode && !gridLayout"
+            :no="route.no"
+            class="relative z-1 max-w-250 w-250 text-lg rounded p3"
+            :auto-height="true"
+            :highlight="activeSlide === route"
+            :editing="edittingNote === route.no"
             :clicks-context="getClicksContext(route)"
-            resettable
-            class="ml-1 w-[calc(100%-0.25rem)]"
-            :class="isPreviewMode ? '' : 'mt-2'"
-            @dblclick="toggleRoute(route)"
-            @activate="activeSlide = route"
-            @reset="activeSlide = undefined"
+            @dblclick="edittingNote !== route.no ? edittingNote = route.no : null"
+            @update:editing="edittingNote = null"
+            @marker-click="(e, clicks) => onMarkerClick(e, clicks, route)"
           />
-        </div>
-        <NoteEditable
-          v-if="!isPreviewMode"
-          :no="route.no"
-          class="relative z-1 max-w-250 w-250 text-lg rounded p3"
-          :auto-height="true"
-          :highlight="activeSlide === route"
-          :editing="edittingNote === route.no"
-          :clicks-context="getClicksContext(route)"
-          @dblclick="edittingNote !== route.no ? edittingNote = route.no : null"
-          @update:editing="edittingNote = null"
-          @marker-click="(e, clicks) => onMarkerClick(e, clicks, route)"
-        />
-        <div
-          v-if="!isPreviewMode && wordCounts[idx] > 0"
-          class="select-none absolute bottom-0 right-0 bg-main rounded-tl p2 op35 text-xs"
-        >
-          {{ wordCounts[idx] }} words
+          <div
+            v-if="!isPreviewMode && !gridLayout && wordCounts[idx] > 0"
+            class="select-none absolute bottom-0 right-0 bg-main rounded-tl p2 op35 text-xs"
+          >
+            {{ wordCounts[idx] }} words
+          </div>
         </div>
       </div>
     </main>

@@ -12,7 +12,7 @@ import { configs } from '../env'
 import { useRouteQuery } from '../logic/route'
 import { getSlide, getSlidePath } from '../logic/slides'
 import { getCurrentTransition } from '../logic/transition'
-import { hmrSkipTransition } from '../state'
+import { hmrSkipTransition, showOverview } from '../state'
 import { createClicksContextBase } from './useClicks'
 import { useTocTree } from './useTocTree'
 
@@ -38,6 +38,19 @@ export interface SlidevContextNav {
   clicksStart: ComputedRef<number>
   clicksTotal: ComputedRef<number>
 
+  /** Whether the presentation uses a 2D grid layout (any slide has `nested: true`) */
+  hasGrid: ComputedRef<boolean>
+  /** Current column index in the 2D grid (0-indexed) */
+  currentGridCol: ComputedRef<number>
+  /** Current row index in the 2D grid (0-indexed) */
+  currentGridRow: ComputedRef<number>
+  /**
+   * The deck grouped by grid column, each inner array ordered by row.
+   * Without any `--` separator every slide is its own single-row column, so
+   * consumers get a flat list rather than an empty one.
+   */
+  gridColumns: ComputedRef<SlideRoute[][]>
+
   /** The table of content tree */
   tocTree: ComputedRef<TocItem[]>
   /** The direction of the navigation, 1 for forward, -1 for backward */
@@ -61,6 +74,22 @@ export interface SlidevContextNav {
   goFirst: () => Promise<void>
   /** Go to the last slide */
   goLast: () => Promise<void>
+  /** Grid: the next slide in the reveal.js `navigateNext` order (clicks, then down, then over) */
+  gridNext: () => Promise<void>
+  /** Grid: the reverse of `gridNext` (clicks, then up, then the bottom of the previous column) */
+  gridPrev: () => Promise<void>
+  /** Grid: the very first slide, clearing every column's remembered row */
+  goGridFirst: () => Promise<void>
+  /** Grid: the last column, at its remembered row */
+  goGridLast: () => Promise<void>
+  /** Go to the previous column in the 2D grid (no-op when not in grid mode) */
+  goLeft: () => Promise<void>
+  /** Go to the next column in the 2D grid (no-op when not in grid mode) */
+  goRight: () => Promise<void>
+  /** Go to the previous row in the current column (no-op when not in grid mode) */
+  goUp: () => Promise<void>
+  /** Go to the next row in the current column (no-op when not in grid mode) */
+  goDown: () => Promise<void>
 
   /** Enter presenter mode */
   enterPresenter: () => void
@@ -90,6 +119,12 @@ export interface SlidevContextNavState {
 
 export interface SlidevContextNavFull extends SlidevContextNav, SlidevContextNavState { }
 
+/**
+ * Per-column memory of the row we were last on - reveal.js' `data-previous-indexv`.
+ * Module-scoped so the main view and the presenter view agree.
+ */
+const rememberedGridRow = new Map<number, number>()
+
 export function useNavBase(
   currentSlideRoute: ComputedRef<SlideRoute>,
   clicksContext: ComputedRef<ClicksContext>,
@@ -107,6 +142,49 @@ export function useNavBase(
   const currentSlideNo = computed(() => currentSlideRoute.value.no)
   const currentLayout = computed(() => currentSlideRoute.value.meta?.layout || (currentSlideNo.value === 1 ? 'cover' : 'default'))
   const currentFrontmatter = computed(() => currentSlideRoute.value.meta.slide.frontmatter)
+
+  const hasGrid = computed(() => slides.value.some(s => (s.meta.slide?.gridRow ?? 0) > 0))
+  const currentGridCol = computed(() => currentSlideRoute.value.meta.slide?.gridCol ?? 0)
+  const currentGridRow = computed(() => currentSlideRoute.value.meta.slide?.gridRow ?? 0)
+
+  // Slides grouped by grid column, each inner array ordered by row.
+  const gridColumns = computed<SlideRoute[][]>(() => {
+    const cols: SlideRoute[][] = []
+    for (const route of slides.value) {
+      const col = route.meta.slide?.gridCol ?? 0
+      ;(cols[col] ??= []).push(route)
+    }
+    return cols
+  })
+
+  function gridRowCount(col: number) {
+    return gridColumns.value[col]?.length ?? 0
+  }
+
+  function gridAt(col: number, row: number) {
+    return gridColumns.value[col]?.[row]
+  }
+
+  /**
+   * reveal.js' `data-previous-indexv`: the row we were last on in each column.
+   * `slide()` writes it when leaving a stack and reads it back when a
+   * horizontal move passes an `undefined` vertical index, which is what makes
+   * left/right return you to where you were rather than to the top.
+   * Landing on the very first slide clears it, as reveal.js does at 0/0.
+   */
+  function gridEntryRow(col: number) {
+    const n = gridRowCount(col)
+    if (n === 0)
+      return 0
+    return Math.min(Math.max(rememberedGridRow.get(col) ?? 0, 0), n - 1)
+  }
+
+  watch([currentGridCol, currentGridRow], ([col, row], [prevCol, prevRow]) => {
+    if (prevCol !== undefined && prevCol !== col)
+      rememberedGridRow.set(prevCol, prevRow)
+    if (col === 0 && row === 0)
+      rememberedGridRow.clear()
+  })
 
   const clicks = computed(() => clicksContext.value.current)
   const clicksStart = computed(() => clicksContext.value.clicksStart)
@@ -185,6 +263,114 @@ export function useNavBase(
     return go(total.value)
   }
 
+  async function goToGrid(col: number, row: number, backwards = false) {
+    if (col < 0 || row < 0)
+      return
+    const target = gridAt(col, row)
+    if (target)
+      await go(target.no, backwards && !isPrint.value ? CLICKS_MAX : 0)
+  }
+
+  const hasNextClick = () => clicks.value < clicksTotal.value
+  const hasPrevClick = () => clicks.value > clicksStart.value
+
+  /** reveal.js `navigateLeft`: clicks first, then the previous column at its remembered row. */
+  async function goLeft() {
+    if (!hasGrid.value)
+      return
+    if (!showOverview.value && hasPrevClick())
+      return prev()
+    const col = currentGridCol.value - 1
+    if (col < 0)
+      return
+    // While the overview is open reveal.js skips the remembered-index restore
+    // and keeps the current row, clamped into the target column.
+    const row = showOverview.value
+      ? Math.min(currentGridRow.value, Math.max(gridRowCount(col) - 1, 0))
+      : gridEntryRow(col)
+    await goToGrid(col, row, true)
+  }
+
+  /** reveal.js `navigateRight`: clicks first, then the next column at its remembered row. */
+  async function goRight() {
+    if (!hasGrid.value)
+      return
+    if (!showOverview.value && hasNextClick())
+      return next()
+    const col = currentGridCol.value + 1
+    if (col >= gridColumns.value.length)
+      return
+    const row = showOverview.value
+      ? Math.min(currentGridRow.value, Math.max(gridRowCount(col) - 1, 0))
+      : gridEntryRow(col)
+    await goToGrid(col, row)
+  }
+
+  /** reveal.js `navigateUp`: clicks first, then one row up. Hard no-op at the top. */
+  async function goUp() {
+    if (!hasGrid.value)
+      return
+    if (!showOverview.value && hasPrevClick())
+      return prev()
+    await goToGrid(currentGridCol.value, currentGridRow.value - 1, true)
+  }
+
+  /** reveal.js `navigateDown`: clicks first, then one row down. Hard no-op at the bottom. */
+  async function goDown() {
+    if (!hasGrid.value)
+      return
+    if (!showOverview.value && hasNextClick())
+      return next()
+    await goToGrid(currentGridCol.value, currentGridRow.value + 1)
+  }
+
+  /** reveal.js `navigateNext`: clicks, then down the column, then over to the next one. */
+  async function gridNext() {
+    if (!hasGrid.value)
+      return next()
+    if (hasNextClick())
+      return next()
+    const col = currentGridCol.value
+    const row = currentGridRow.value
+    if (row + 1 < gridRowCount(col))
+      return goToGrid(col, row + 1)
+    const nextCol = col + 1
+    if (nextCol >= gridColumns.value.length)
+      return
+    await goToGrid(nextCol, gridEntryRow(nextCol))
+  }
+
+  /**
+   * reveal.js `navigatePrev`: clicks, then up, then the *bottom* of the
+   * previous column. Deliberately not the mirror of `goLeft` - this is what
+   * makes space / shift-space a reversible linear walk.
+   */
+  async function gridPrev() {
+    if (!hasGrid.value)
+      return prev()
+    if (hasPrevClick())
+      return prev()
+    const col = currentGridCol.value
+    const row = currentGridRow.value
+    if (row > 0)
+      return goToGrid(col, row - 1, true)
+    const prevCol = col - 1
+    if (prevCol < 0)
+      return
+    await goToGrid(prevCol, gridRowCount(prevCol) - 1, true)
+  }
+
+  /** reveal.js Shift+Left: the very first slide (which also clears the row memory). */
+  async function goGridFirst() {
+    await goToGrid(0, 0)
+  }
+
+  /** reveal.js Shift+Right: the last column, at its remembered row. */
+  async function goGridLast() {
+    const col = gridColumns.value.length - 1
+    await goToGrid(col, gridEntryRow(col))
+  }
+
   async function go(no: number | string, clicks: number = 0, force = false) {
     hmrSkipTransition.value = false
     const pageChanged = currentSlideNo.value !== no
@@ -236,6 +422,10 @@ export function useNavBase(
     clicksTotal,
     hasNext,
     hasPrev,
+    hasGrid,
+    currentGridCol,
+    currentGridRow,
+    gridColumns,
     tocTree,
     navDirection,
     openInEditor,
@@ -244,6 +434,14 @@ export function useNavBase(
     go,
     goLast,
     goFirst,
+    gridNext,
+    gridPrev,
+    goGridFirst,
+    goGridLast,
+    goLeft,
+    goRight,
+    goUp,
+    goDown,
     nextSlide,
     prevSlide,
     enterPresenter,
@@ -271,6 +469,14 @@ export function useFixedNav(
     goFirst: noop,
     goLast: noop,
     go: noop,
+    gridNext: noop,
+    gridPrev: noop,
+    goGridFirst: noop,
+    goGridLast: noop,
+    goLeft: noop,
+    goRight: noop,
+    goUp: noop,
+    goDown: noop,
   }
 }
 
