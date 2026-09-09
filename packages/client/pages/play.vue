@@ -7,17 +7,20 @@ import { useNav } from '../composables/useNav'
 import { useSwipeControls } from '../composables/useSwipeControls'
 import { useWakeLock } from '../composables/useWakeLock'
 import Controls from '../internals/Controls.vue'
+import DeckProgressBar from '../internals/DeckProgressBar.vue'
 import LaserPointer from '../internals/LaserPointer.vue'
 import NavControls from '../internals/NavControls.vue'
 import PresenterMouse from '../internals/PresenterMouse.vue'
 import SlideContainer from '../internals/SlideContainer.vue'
 import SlidesShow from '../internals/SlidesShow.vue'
 import { onContextMenu } from '../logic/contextMenu'
+import { useDeckProgressBarVisible } from '../logic/progressBar'
 import { registerShortcuts } from '../logic/shortcuts'
 import { editorHeight, editorWidth, isEditorVertical, isScreenVertical, showEditor, viewerCssFilter, viewerCssFilterDefaults } from '../state'
 
 const { next, prev, isPrintMode, isPlaying, isEmbedded } = useNav()
 const { isDrawing } = useDrawings()
+const showProgressBar = useDeckProgressBarVisible()
 
 const root = ref<HTMLDivElement>()
 function onClick(e: MouseEvent) {
@@ -101,10 +104,23 @@ const contentStyle = computed(() => {
         <LaserPointer />
       </template>
       <template #controls>
+        <!-- Column-proportional progress bar, along the very bottom of the
+             viewport the way reveal.js puts it. `useDeckProgressBarVisible`
+             owns the headmatter / per-slide frontmatter switches. The 14px
+             offset on the nav controls below is `DeckProgressBar`'s own height
+             at `:height="8"` (the current column stands 1.7x proud). -->
+        <Transition name="fade">
+          <DeckProgressBar
+            v-if="showProgressBar"
+            class="absolute bottom-0 left-0 right-0 pointer-events-none"
+            :height="8"
+          />
+        </Transition>
         <div
           v-if="!isPrintMode"
-          class="absolute bottom-0 left-0 transition duration-300 opacity-0 hover:opacity-100 focus-within:opacity-100 focus-visible:opacity-100"
+          class="absolute left-0 transition duration-300 opacity-0 hover:opacity-100 focus-within:opacity-100 focus-visible:opacity-100"
           :class="[
+            showProgressBar ? 'bottom-[14px]' : 'bottom-0',
             persistNav ? '!opacity-100 right-0' : 'opacity-0 p-2',
             isDrawing ? 'pointer-events-none' : '',
           ]"

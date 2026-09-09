@@ -1,7 +1,9 @@
 import type { BuiltinLayouts } from './builtin-layouts'
 import type { SlidevThemeConfig } from './types'
 
-export interface Headmatter extends HeadmatterConfig, Omit<Frontmatter, 'title' | 'transition'> {
+// `progressBar` is deck-wide in the headmatter (`boolean | 'auto'`) and a plain
+// boolean override per slide, so the headmatter's wider type has to win.
+export interface Headmatter extends HeadmatterConfig, Omit<Frontmatter, 'title' | 'transition' | 'progressBar'> {
   /**
    * Default frontmatter options applied to all slides
    */
@@ -345,6 +347,31 @@ export interface HeadmatterConfig extends TransitionOptions {
    * @default true
    */
   preloadImages?: boolean | { ahead?: number }
+  /**
+   * Show a progress bar along the bottom of the presentation.
+   *
+   * Segments are one per grid column (topic), each sized in proportion to the
+   * number of slides in that column, so the bar advances at a constant rate
+   * per slide while still showing where each topic starts and ends.
+   *
+   * - `'auto'` - on for decks that use the 2D grid (`--` separators), off otherwise
+   * - `true` / `false` - force on / off for the whole deck
+   *
+   * Individual slides can opt out with `progressBar: false` in their own
+   * frontmatter; see also `progressBarHideLayouts`.
+   *
+   * @default 'auto'
+   */
+  progressBar?: boolean | 'auto'
+  /**
+   * Layouts that never get the progress bar, for full-bleed slides where a
+   * bar across the bottom would land on the artwork.
+   *
+   * A slide's own `progressBar: true` overrides this.
+   *
+   * @default ['cover', 'full', 'statement', 'end', 'image', 'none']
+   */
+  progressBarHideLayouts?: string[]
 }
 
 export interface Frontmatter extends TransitionOptions {
@@ -391,6 +418,13 @@ export interface Frontmatter extends TransitionOptions {
    * See https://sli.dev/builtin/components#toc
    */
   hideInToc?: boolean
+  /**
+   * Show or hide the deck progress bar on this slide only.
+   *
+   * `false` hides it on a slide that would otherwise have it; `true` forces it
+   * back on for a layout listed in the headmatter's `progressBarHideLayouts`.
+   */
+  progressBar?: boolean
   /**
    * Start a new row in the same 2D grid column instead of a new column.
    *
