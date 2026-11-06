@@ -116,6 +116,16 @@ watch(() => [windowSize.width.value, windowSize.height.value], () => {
     revealCurrentCard(false)
 })
 
+// Panning the overview with a trackpad must never change slides. Each slide is
+// a history entry, so a horizontal two-finger scroll that runs past the edge of
+// the grid is taken by the browser as its swipe-back/forward gesture and moves
+// the deck. overscroll-behavior on the scroller stops the scroll chaining out
+// of it; the root needs it too, because an axis the scroller cannot scroll on
+// is handed straight to the root viewport, which owns the gesture.
+watch(showOverview, (open) => {
+  document.documentElement.style.overscrollBehavior = open ? 'none' : ''
+}, { immediate: true })
+
 const keyboardBuffer = ref<string>('')
 
 async function captureSlidesOverview() {
@@ -186,7 +196,7 @@ watchEffect(() => {
     <div
       v-if="showOverview"
       ref="scroller"
-      class="fixed left-0 right-0 top-0 h-[calc(var(--vh,1vh)*100)] z-modal bg-main !bg-opacity-75 backdrop-blur-5px select-none"
+      class="fixed left-0 right-0 top-0 h-[calc(var(--vh,1vh)*100)] z-modal bg-main !bg-opacity-75 backdrop-blur-5px select-none overscroll-none"
       :class="hasGrid ? 'p-8 py-10 overflow-auto' : 'p-16 py-20 overflow-y-auto'"
       @click="close"
     >
