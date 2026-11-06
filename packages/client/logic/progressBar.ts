@@ -24,7 +24,9 @@ export function useDeckProgressBarVisible(): ComputedRef<boolean> {
 
   const enabled = computed(() => {
     const setting = configs.progressBar
-    return setting === 'auto' || setting == null ? hasGrid.value : !!setting
+    return setting === 'auto' || setting == null
+      ? hasGrid.value
+      : !!setting
   })
 
   const hideLayouts = computed(() => new Set(configs.progressBarHideLayouts ?? []))

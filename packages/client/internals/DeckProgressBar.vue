@@ -50,7 +50,9 @@ const activeHeight = computed(() => Math.max(props.height + 2, Math.round(props.
  */
 const progress = computed(() => {
   const ctx = clicksContext.value
-  const clickFraction = ctx && ctx.total > 0 ? ctx.current / (ctx.total + 1) : 0
+  const clickFraction = ctx && ctx.total > 0
+    ? ctx.current / (ctx.total + 1)
+    : 0
   return (current.value - 1) + clickFraction
 })
 

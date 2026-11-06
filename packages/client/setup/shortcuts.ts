@@ -69,27 +69,133 @@ export default function setupShortcuts() {
   //   shift-right / shift-left -> last column / very first slide
   // A deck with no `--` at all keeps stock Slidev behaviour on every key.
   let shortcuts: ShortcutOptions[] = [
-    { name: 'next_space', key: and(space, not(shift)), fn: () => hasGrid.value ? (showOverview.value = false, gridNext()) : next(), autoRepeat: true },
-    { name: 'prev_space', key: and(space, shift), fn: () => hasGrid.value ? (showOverview.value = false, gridPrev()) : prev(), autoRepeat: true },
-    { name: 'next_right', key: and(right, not(shift), navViaArrowKeys), fn: () => hasGrid.value ? goRight() : next(), autoRepeat: true },
-    { name: 'prev_left', key: and(left, not(shift), navViaArrowKeys), fn: () => hasGrid.value ? goLeft() : prev(), autoRepeat: true },
-    { name: 'next_page_key', key: 'pageDown', fn: () => hasGrid.value ? gridNext() : next(), autoRepeat: true },
-    { name: 'prev_page_key', key: 'pageUp', fn: () => hasGrid.value ? gridPrev() : prev(), autoRepeat: true },
-    { name: 'next_down', key: and(down, navViaArrowKeys), fn: () => hasGrid.value ? goDown() : nextSlide(), autoRepeat: true },
-    { name: 'prev_up', key: and(up, navViaArrowKeys), fn: () => hasGrid.value ? goUp() : prevSlide(), autoRepeat: true },
-    { name: 'next_shift', key: and(right, shift), fn: () => hasGrid.value ? goGridLast() : nextSlide(), autoRepeat: true },
-    { name: 'prev_shift', key: and(left, shift), fn: () => hasGrid.value ? goGridFirst() : prevSlide(), autoRepeat: true },
-    { name: 'toggle_dark', key: and(d, not(drawingEnabled)), fn: toggleDark },
-    { name: 'toggle_overview', key: and(or(o, backtick), not(drawingEnabled)), fn: toggleOverview },
+    {
+      name: 'next_space',
+      key: and(space, not(shift)),
+      fn: () => hasGrid.value
+        ? (showOverview.value = false, gridNext())
+        : next(),
+      autoRepeat: true,
+    },
+    {
+      name: 'prev_space',
+      key: and(space, shift),
+      fn: () => hasGrid.value
+        ? (showOverview.value = false, gridPrev())
+        : prev(),
+      autoRepeat: true,
+    },
+    {
+      name: 'next_right',
+      key: and(right, not(shift), navViaArrowKeys),
+      fn: () => hasGrid.value
+        ? goRight()
+        : next(),
+      autoRepeat: true,
+    },
+    {
+      name: 'prev_left',
+      key: and(left, not(shift), navViaArrowKeys),
+      fn: () => hasGrid.value
+        ? goLeft()
+        : prev(),
+      autoRepeat: true,
+    },
+    {
+      name: 'next_page_key',
+      key: 'pageDown',
+      fn: () => hasGrid.value
+        ? gridNext()
+        : next(),
+      autoRepeat: true,
+    },
+    {
+      name: 'prev_page_key',
+      key: 'pageUp',
+      fn: () => hasGrid.value
+        ? gridPrev()
+        : prev(),
+      autoRepeat: true,
+    },
+    {
+      name: 'next_down',
+      key: and(down, navViaArrowKeys),
+      fn: () => hasGrid.value
+        ? goDown()
+        : nextSlide(),
+      autoRepeat: true,
+    },
+    {
+      name: 'prev_up',
+      key: and(up, navViaArrowKeys),
+      fn: () => hasGrid.value
+        ? goUp()
+        : prevSlide(),
+      autoRepeat: true,
+    },
+    {
+      name: 'next_shift',
+      key: and(right, shift),
+      fn: () => hasGrid.value
+        ? goGridLast()
+        : nextSlide(),
+      autoRepeat: true,
+    },
+    {
+      name: 'prev_shift',
+      key: and(left, shift),
+      fn: () => hasGrid.value
+        ? goGridFirst()
+        : prevSlide(),
+      autoRepeat: true,
+    },
+    {
+      name: 'toggle_dark',
+      key: and(d, not(drawingEnabled)),
+      fn: toggleDark,
+    },
+    {
+      name: 'toggle_overview',
+      key: and(or(o, backtick), not(drawingEnabled)),
+      fn: toggleOverview,
+    },
     // reveal.js binds ESC and O to *toggle* the overview. Stock Slidev binds
     // escape to hide-only, so on a normal slide it does nothing at all.
-    { name: 'hide_overview', key: and(escape, not(drawingEnabled)), fn: onEscape },
-    { name: 'toggle_help', key: and(or(question, and(shift, slash)), not(drawingEnabled)), fn: toggleShortcutsHelp },
-    { name: 'goto', key: and(g, not(drawingEnabled)), fn: () => showGotoDialog.value = !showGotoDialog.value },
-    { name: 'next_overview', key: and(right, overviewOnly), fn: nextOverviewPage },
-    { name: 'prev_overview', key: and(left, overviewOnly), fn: prevOverviewPage },
-    { name: 'up_overview', key: and(up, overviewOnly), fn: upOverviewPage },
-    { name: 'down_overview', key: and(down, overviewOnly), fn: downOverviewPage },
+    {
+      name: 'hide_overview',
+      key: and(escape, not(drawingEnabled)),
+      fn: onEscape,
+    },
+    {
+      name: 'toggle_help',
+      key: and(or(question, and(shift, slash)), not(drawingEnabled)),
+      fn: toggleShortcutsHelp,
+    },
+    {
+      name: 'goto',
+      key: and(g, not(drawingEnabled)),
+      fn: () => showGotoDialog.value = !showGotoDialog.value,
+    },
+    {
+      name: 'next_overview',
+      key: and(right, overviewOnly),
+      fn: nextOverviewPage,
+    },
+    {
+      name: 'prev_overview',
+      key: and(left, overviewOnly),
+      fn: prevOverviewPage,
+    },
+    {
+      name: 'up_overview',
+      key: and(up, overviewOnly),
+      fn: upOverviewPage,
+    },
+    {
+      name: 'down_overview',
+      key: and(down, overviewOnly),
+      fn: downOverviewPage,
+    },
     {
       name: 'goto_from_overview',
       key: and(enter, showOverview),

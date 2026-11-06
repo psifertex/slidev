@@ -86,6 +86,16 @@
           "description": "Hide the slide for the `<Toc>` components\n\nSee https://sli.dev/builtin/components#toc",
           "markdownDescription": "Hide the slide for the `<Toc>` components\n\nSee https://sli.dev/builtin/components#toc"
         },
+        "progressBar": {
+          "type": "boolean",
+          "description": "Show or hide the deck progress bar on this slide only.\n\n`false` hides it on a slide that would otherwise have it; `true` forces it back on for a layout listed in the headmatter's `progressBarHideLayouts`.",
+          "markdownDescription": "Show or hide the deck progress bar on this slide only.\n\n`false` hides it on a slide that would otherwise have it; `true` forces it\nback on for a layout listed in the headmatter's `progressBarHideLayouts`."
+        },
+        "nested": {
+          "type": "boolean",
+          "description": "Start a new row in the same 2D grid column instead of a new column.\n\nInjected automatically for a slide introduced by a bare `--` separator; setting it by hand on a `---` slide has the same effect.",
+          "markdownDescription": "Start a new row in the same 2D grid column instead of a new column.\n\nInjected automatically for a slide introduced by a bare `--` separator;\nsetting it by hand on a `---` slide has the same effect."
+        },
         "title": {
           "type": "string",
           "description": "Override the title for the `<TitleRenderer>` and `<Toc>` components Only if `title` has also been declared",

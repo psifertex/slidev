@@ -452,7 +452,7 @@ Content 2",
     "gridRow": 0,
     "importChain": undefined,
     "index": 6,
-    "level": 1,
+    "level": undefined,
     "note": undefined,
     "revision": "-vfy6yo",
     "source": {
@@ -484,7 +484,7 @@ Content 2",
       "frontmatterStyle": "frontmatter",
       "images": [],
       "index": 6,
-      "level": 1,
+      "level": undefined,
       "note": undefined,
       "raw": "---
 layout: cover
@@ -499,9 +499,9 @@ Content 2
 ",
       "revision": "-vfy6yo",
       "start": 59,
-      "title": "When there is already a frontmatter, the first yaml block should be treated as content",
+      "title": undefined,
     },
-    "title": "When there is already a frontmatter, the first yaml block should be treated as content",
+    "title": undefined,
   },
   {
     "content": "# Title

@@ -41,7 +41,9 @@ const rowsPerCol = computed(() => {
 function gridLabel(route: SlideRoute) {
   const col = route.meta.slide?.gridCol ?? 0
   const row = route.meta.slide?.gridRow ?? 0
-  return (rowsPerCol.value.get(col) ?? 1) > 1 ? `${col + 1}.${row + 1}` : `${col + 1}`
+  return (rowsPerCol.value.get(col) ?? 1) > 1
+    ? `${col + 1}.${row + 1}`
+    : `${col + 1}`
 }
 
 function close() {
@@ -90,7 +92,11 @@ function revealCurrentCard(smooth = true) {
   nextTick(() => {
     scroller.value
       ?.querySelector('[data-current="true"]')
-      ?.scrollIntoView({ block: 'center', inline: 'center', behavior: smooth ? 'smooth' : 'auto' })
+      ?.scrollIntoView({
+        block: 'center',
+        inline: 'center',
+        behavior: smooth ? 'smooth' : 'auto',
+      })
   })
 }
 watch(showOverview, (open) => {

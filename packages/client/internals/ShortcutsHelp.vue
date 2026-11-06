@@ -23,7 +23,9 @@ const { hasGrid } = useNav()
 
 /** Rows describe the bindings the deck actually has, which depend on `hasGrid`. */
 function describe(row: { description: string, grid?: string }) {
-  return hasGrid.value ? (row.grid ?? row.description) : row.description
+  return hasGrid.value
+    ? (row.grid ?? row.description)
+    : row.description
 }
 
 const rows = computed(() => {
@@ -34,10 +36,17 @@ const rows = computed(() => {
     if (!row || seen.has(name))
       continue
     seen.add(name)
-    out.push({ keys: row.keys, description: describe(row) })
+    out.push({
+      keys: row.keys,
+      description: describe(row),
+    })
   }
-  for (const row of extraShortcutHelp)
-    out.push({ keys: row.keys, description: describe(row) })
+  for (const row of extraShortcutHelp) {
+    out.push({
+      keys: row.keys,
+      description: describe(row),
+    })
+  }
   return out
 })
 
@@ -45,7 +54,9 @@ const MODIFIERS = new Set(['shift', 'ctrl', 'alt', 'cmd', 'meta'])
 
 /** `shift + →` is a chord; `o / \`` are alternatives for the same action. */
 function separator(keys: string[]) {
-  return MODIFIERS.has(keys[0]) ? '+' : '/'
+  return MODIFIERS.has(keys[0])
+    ? '+'
+    : '/'
 }
 
 function close() {
